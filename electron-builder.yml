@@ -1,0 +1,42 @@
+appId: com.qwerty.interview-copilot
+productName: Interview Copilot
+copyright: Interview Copilot
+
+directories:
+  buildResources: build
+  output: release
+
+files:
+  - out/**/*
+  - package.json
+
+# .env в сборку не кладём — ключ вводится в UI и лежит в userData.
+asar: true
+
+mac:
+  category: public.app-category.developer-tools
+  target:
+    - target: dmg
+      arch:
+        - arm64
+        - x64
+  hardenedRuntime: true
+  notarize: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  # Локальная сборка без сертификата Apple Developer: подпись ad-hoc.
+  identity: null
+  extendInfo:
+    NSMicrophoneUsageDescription: >-
+      Микрофон нужен, чтобы распознавать вашу речь во время тренировки.
+    NSCameraUsageDescription: Камера не используется.
+    NSAppleEventsUsageDescription: Не используется.
+    # macOS не даёт TCC-запрос на запись экрана без этой строки.
+    NSScreenCaptureUsageDescription: >-
+      Доступ к записи экрана нужен, чтобы захватывать системный звук созвона.
+    LSUIElement: false
+
+dmg:
+  artifactName: ${productName}-${version}-${arch}.dmg
+
+npmRebuild: false
