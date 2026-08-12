@@ -59,6 +59,7 @@ npm run dev
 | `STT_MODEL` | `whisper-1` |
 | `COACH_MODEL` | `gpt-4o-mini` |
 | `CHUNK_SECONDS` | `6` |
+| `COPILOT_DEBUG` | — (`1` открывает devtools скрытого capture-окна и логирует чанки) |
 
 ## Сборка
 

@@ -17,6 +17,7 @@ import type { AppSettings, CaptureStatus, CoachResult } from '../../shared/types
 app.setName('Interview Copilot')
 
 const isDev = !app.isPackaged
+const isDebug = Boolean(process.env.COPILOT_DEBUG)
 const COMPACT_HEIGHT = 320
 const FULL_HEIGHT = 560
 
@@ -116,6 +117,9 @@ function createCaptureWindow(): void {
   })
 
   loadRenderer(captureWindow, 'capture')
+
+  // Окно скрыто, поэтому иначе его консоль и ошибки захвата увидеть негде.
+  if (isDebug) captureWindow.webContents.openDevTools({ mode: 'detach' })
 
   captureWindow.on('closed', () => {
     captureWindow = null
@@ -226,10 +230,12 @@ function registerIpc(): void {
   })
 
   ipcMain.on('capture:status', (_, status: CaptureStatus) => {
+    if (isDebug) console.log('[capture] status:', status)
     sendToOverlay('capture:status', status)
   })
 
   ipcMain.on('capture:transcript', (_, data: CoachResult) => {
+    if (isDebug) console.log('[capture] transcript:', JSON.stringify(data.transcript))
     sendToOverlay('capture:transcript', data)
   })
 

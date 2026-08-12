@@ -119,7 +119,15 @@ export default function CaptureWorker() {
       recordChunk(mimeType, chunkMs)
 
       const loudEnough = vadRef.current === 0 || peak >= vadRef.current
-      if (blob.size > 2000 && loudEnough) {
+      const bigEnough = blob.size > 2000
+
+      // Видно в devtools capture-окна при COPILOT_DEBUG=1.
+      console.debug(
+        `[chunk] ${blob.size} B, пик RMS ${peak.toFixed(4)} / порог ${vadRef.current}` +
+          ` → ${bigEnough && loudEnough ? 'в Whisper' : 'пропущен'}`
+      )
+
+      if (bigEnough && loudEnough) {
         queueRef.current = queueRef.current.then(() => processBlob(blob, mimeType))
       }
     }
