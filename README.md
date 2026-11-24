@@ -58,7 +58,7 @@ npm run dev
 | `OPENAI_BASE_URL` | `https://api.openai.com/v1` |
 | `STT_MODEL` | `whisper-1` |
 | `COACH_MODEL` | `gpt-4o-mini` |
-| `CHUNK_SECONDS` | `6` |
+| `CHUNK_SECONDS` | `6` (действует, пока длину чанка не сдвинули в «Профиле»; дальше главное значение из UI) |
 | `COPILOT_DEBUG` | — (`1` открывает devtools скрытого capture-окна и логирует чанки) |
 
 ## Сборка

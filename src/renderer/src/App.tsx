@@ -258,7 +258,7 @@ export default function App() {
             <input
               type="range"
               min={3}
-              max={15}
+              max={20}
               step={1}
               value={draft.chunkSeconds}
               onChange={(e) => setDraft({ ...draft, chunkSeconds: Number(e.target.value) })}
