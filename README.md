@@ -65,6 +65,7 @@ npm run dev
 
 ```bash
 npm run typecheck   # tsc по обоим проектам
+npm test            # юнит-тесты main-процесса (Vitest)
 npm run build       # typecheck + electron-vite build в out/
 npm run start       # запустить собранное
 npm run dist        # .dmg для arm64 и x64 в release/

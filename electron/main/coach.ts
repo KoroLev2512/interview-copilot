@@ -27,7 +27,7 @@ const ASKED_LIMIT = 50
 /** Сколько последних чанков держим как контекст фразы. */
 const CONTEXT_CHUNKS = 4
 
-type VerboseTranscription = {
+export type VerboseTranscription = {
   text?: string
   segments?: { no_speech_prob?: number; text?: string }[]
 }
@@ -226,13 +226,13 @@ export class CoachService {
   }
 }
 
-function isSilence(transcription: VerboseTranscription): boolean {
+export function isSilence(transcription: VerboseTranscription): boolean {
   const segments = transcription.segments
   if (!segments?.length) return false
   return segments.every((s) => (s.no_speech_prob ?? 0) >= 0.6)
 }
 
-function isHallucination(text: string): boolean {
+export function isHallucination(text: string): boolean {
   const normalized = text.toLowerCase().replace(/\s+/g, ' ').trim()
   if (normalized.length < 4) return true
   // Мусор ловим только в короткой реплике: в длинной фразе это может быть по делу.

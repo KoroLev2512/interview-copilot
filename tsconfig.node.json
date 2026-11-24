@@ -15,5 +15,5 @@
     },
     "types": ["node"]
   },
-  "include": ["electron.vite.config.ts", "electron/**/*", "shared/**/*"]
+  "include": ["electron.vite.config.ts", "vitest.config.ts", "electron/**/*", "shared/**/*"]
 }
