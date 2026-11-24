@@ -1,10 +1,8 @@
 import OpenAI, { toFile } from 'openai'
 import { randomUUID } from 'crypto'
 import type { CoachError, CoachResult } from '../../shared/types'
+import { findNewQuestions, normalizeSentence } from './question'
 import type { SettingsStore } from './settings'
-
-const QUESTION_RE =
-  /(\?|\b(what|how|why|when|where|who|which|can you|could you|would you|explain|describe|difference|compare|tell me|walk me through)\b|(расскаж|объясн|чем отлича|в чём разниц|в чем разниц|как работ|как устроен|почему|зачем|что такое|что будет если|как бы ты|опиши|сравни))/i
 
 /**
  * Whisper на тишине и шуме уверенно выдаёт заученные фразы из субтитров.
@@ -24,8 +22,8 @@ const HALLUCINATIONS = [
   'amara.org'
 ]
 
-/** Минимальная длина хвоста, при которой вообще стоит звать GPT. */
-const MIN_QUESTION_CHARS = 16
+/** Сколько уже отправленных в GPT предложений помним, чтобы не спрашивать повторно. */
+const ASKED_LIMIT = 50
 /** Сколько последних чанков держим как контекст фразы. */
 const CONTEXT_CHUNKS = 4
 
@@ -39,6 +37,8 @@ export class CoachService {
   private clientKey = ''
   /** Последние распознанные чанки — фраза часто рвётся по границе. */
   private context: string[] = []
+  /** Нормализованные вопросы, по которым GPT уже отвечал в этой сессии прослушивания. */
+  private asked = new Set<string>()
 
   constructor(private settings: SettingsStore) {}
 
@@ -75,6 +75,24 @@ export class CoachService {
 
   resetContext(): void {
     this.context = []
+  }
+
+  /** Новая сессия прослушивания: забываем и хвост, и отвеченные вопросы. */
+  resetSession(): void {
+    this.resetContext()
+    this.asked.clear()
+  }
+
+  private markAsked(sentences: string[]): void {
+    for (const s of sentences) {
+      this.asked.delete(normalizeSentence(s))
+      this.asked.add(normalizeSentence(s))
+    }
+    // Set хранит порядок вставки — выкидываем самые старые.
+    for (const old of this.asked) {
+      if (this.asked.size <= ASKED_LIMIT) break
+      this.asked.delete(old)
+    }
   }
 
   async suggestFromAudio(buffer: Buffer, mimeType: string): Promise<CoachResult | CoachError> {
@@ -135,9 +153,11 @@ export class CoachService {
     visible: string,
     force = false
   ): Promise<CoachResult | CoachError> {
-    const isQuestion = force || (tail.length >= MIN_QUESTION_CHARS && QUESTION_RE.test(tail))
+    // Хвост держит до 4 чанков: без учёта «уже спрашивали» один и тот же вопрос
+    // уходил бы в GPT на каждом следующем чанке, пока GPT не вернёт тезисы.
+    const newQuestions = force ? [] : findNewQuestions(tail, this.asked)
 
-    if (!isQuestion) {
+    if (!force && !newQuestions.length) {
       return { transcript: visible, question: '', hints: [], isQuestion: false }
     }
 
@@ -172,6 +192,8 @@ export class CoachService {
         response_format: { type: 'json_object' }
       })
       raw = completion.choices[0]?.message?.content || '{}'
+      // Отмечаем только после ответа: при сетевой ошибке вопрос стоит переспросить.
+      this.markAsked(newQuestions)
     } catch (err) {
       return { error: describeError(err, 'подсказки') }
     }

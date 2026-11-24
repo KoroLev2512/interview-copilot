@@ -153,7 +153,7 @@ function toggleOverlay(): void {
 function startListening(): void {
   if (listening) return
   listening = true
-  coach.resetContext()
+  coach.resetSession()
   void triggerScreenCapturePrompt().then(broadcastScreenPermission)
   captureWindow?.webContents.send('listening:start')
   sendToOverlay('listening:state', true)
