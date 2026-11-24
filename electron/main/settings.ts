@@ -16,6 +16,7 @@ const defaults: Persisted = {
   chunkSeconds: clampChunk(Number(process.env.CHUNK_SECONDS) || 6),
   vadThreshold: 0.012,
   notes: '',
+  captureMic: false,
   compact: false,
   apiKey: '',
   apiKeyEncrypted: false

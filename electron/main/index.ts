@@ -112,7 +112,9 @@ function createCaptureWindow(): void {
       sandbox: false,
       contextIsolation: true,
       // Скрытому окну нельзя засыпать, иначе запись рвётся, когда overlay не в фокусе.
-      backgroundThrottling: false
+      backgroundThrottling: false,
+      // AudioContext для сведения микрофона стартует без пользовательского жеста.
+      autoplayPolicy: 'no-user-gesture-required'
     }
   })
 

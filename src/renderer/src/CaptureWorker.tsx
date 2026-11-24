@@ -3,7 +3,11 @@ import type { CoachResult } from '../../../electron/preload/index'
 
 /** Скрытое окно: захватывает системный звук через getDisplayMedia (loopback на macOS). */
 export default function CaptureWorker() {
+  /** Сведённый поток, который пишет MediaRecorder. */
   const streamRef = useRef<MediaStream | null>(null)
+  /** Исходные потоки — их треки надо глушить отдельно, иначе macOS держит индикатор записи. */
+  const systemStreamRef = useRef<MediaStream | null>(null)
+  const micStreamRef = useRef<MediaStream | null>(null)
   const runningRef = useRef(false)
   const audioCtxRef = useRef<AudioContext | null>(null)
   /** Пик RMS за текущий чанк — по нему решаем, отправлять ли его в Whisper. */
@@ -55,9 +59,17 @@ export default function CaptureWorker() {
 
       // Пользователь может оборвать стрим из системной плашки — не крутим пустую запись.
       audioTrack.addEventListener('ended', () => stop())
+      systemStreamRef.current = stream
 
-      streamRef.current = stream
-      startLevelMeter(stream)
+      const mic = settings.captureMic ? await openMic() : null
+      // Стоп мог прийти, пока висел системный диалог доступа к микрофону.
+      if (!runningRef.current) {
+        mic?.getTracks().forEach((t) => t.stop())
+        return
+      }
+      micStreamRef.current = mic
+
+      streamRef.current = await mixAndMeter(mic ? [stream, mic] : [stream])
 
       const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
         ? 'audio/webm;codecs=opus'
@@ -66,19 +78,46 @@ export default function CaptureWorker() {
       recordChunk(mimeType, chunkMs)
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
+      // Глушим уже открытые потоки, иначе индикатор записи macOS так и висит.
+      stop()
       window.copilot.emitCaptureStatus(`error:${msg}`)
-      runningRef.current = false
     }
   }
 
-  /** Мониторит громкость: без этого Whisper вызывается и на полной тишине. */
-  function startLevelMeter(stream: MediaStream) {
+  /** Микрофон опционален: если не дали доступ, продолжаем на одном системном звуке. */
+  async function openMic(): Promise<MediaStream | null> {
+    try {
+      return await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+      })
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      window.copilot.emitCaptureStatus(
+        `error:Микрофон недоступен (${msg}) — слушаю только звук созвона. Проверьте доступ к микрофону в настройках macOS.`
+      )
+      return null
+    }
+  }
+
+  /**
+   * Сводит все источники в один поток для MediaRecorder и заодно мониторит громкость:
+   * без этого Whisper вызывается и на полной тишине.
+   */
+  async function mixAndMeter(streams: MediaStream[]): Promise<MediaStream> {
     const ctx = new AudioContext()
     audioCtxRef.current = ctx
-    const source = ctx.createMediaStreamSource(stream)
+    // Скрытое окно без пользовательского жеста — контекст может стартовать в suspended.
+    if (ctx.state === 'suspended') await ctx.resume().catch(() => undefined)
+
+    const destination = ctx.createMediaStreamDestination()
     const analyser = ctx.createAnalyser()
     analyser.fftSize = 2048
-    source.connect(analyser)
+
+    for (const s of streams) {
+      const source = ctx.createMediaStreamSource(s)
+      source.connect(destination)
+      source.connect(analyser)
+    }
 
     const buffer = new Float32Array(analyser.fftSize)
     const tick = () => {
@@ -91,6 +130,8 @@ export default function CaptureWorker() {
       requestAnimationFrame(tick)
     }
     requestAnimationFrame(tick)
+
+    return destination.stream
   }
 
   function recordChunk(mimeType: string, chunkMs: number) {
@@ -141,8 +182,10 @@ export default function CaptureWorker() {
   function stop() {
     if (!runningRef.current) return
     runningRef.current = false
-    streamRef.current?.getTracks().forEach((t) => t.stop())
-    streamRef.current = null
+    for (const ref of [streamRef, systemStreamRef, micStreamRef]) {
+      ref.current?.getTracks().forEach((t) => t.stop())
+      ref.current = null
+    }
     void audioCtxRef.current?.close().catch(() => undefined)
     audioCtxRef.current = null
     peakRef.current = 0

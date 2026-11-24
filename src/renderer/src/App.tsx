@@ -279,6 +279,19 @@ export default function App() {
               Чанки тише порога не уходят в Whisper — тишина не тратит деньги.
             </p>
 
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={draft.captureMic}
+                onChange={(e) => setDraft({ ...draft, captureMic: e.target.checked })}
+              />
+              Записывать и мой микрофон
+            </label>
+            <p className="muted small">
+              Ваша речь тоже попадёт в распознавание. Применяется со следующего старта
+              прослушивания.
+            </p>
+
             <div className="controls">
               <button className="primary" onClick={saveSettings}>
                 Сохранить
